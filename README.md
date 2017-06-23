@@ -1,7 +1,4 @@
-# Auto Script, By YUSUF-ARDIANSYAH (082139743432)
-=================================================================================
 
-# z7
 ```
 wget https://raw.githubusercontent.com/yusuf-ardiansyah/y/debian7/z7.sh && chmod +x ./z7.sh && ./z7.sh
 ```
