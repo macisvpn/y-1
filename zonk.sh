@@ -1,218 +1,499 @@
-if [ $USER != 'root' ]; then
-	echo "Sorry, you need to run this as root"
-	exit
-fi
-
-
-if [ ! -e /dev/net/tun ]; then
-    echo "TUN/TAP is not available"
-    exit
-fi
-
-# Try to get our IP from the system and fallback to the Internet.
-# I do this to make the script compatible with NATed servers (lowendspirit.com)
-# and to avoid getting an IPv6.
-IP=$(ifconfig | grep 'inet addr:' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d: -f2 | awk '{ print $1}' | head -1)
-if [ "$IP" = "" ]; then
-        IP=$(wget -qO- ipv4.icanhazip.com)
-fi
-
-if [ -e /etc/openvpn/server.conf ]; then
-	while :
-	do
-	clear
-		echo "Looks like OpenVPN is already installed"
-		echo "What do you want to do?"
-		echo ""
-		echo "1) Remove OpenVPN"
-		echo "2) Exit"
-		echo ""
-		read -p "Select an option [1-4]:" option
-		case $option in
-			1) 
-			apt-get remove --purge -y openvpn
-			rm -rf /etc/openvpn
-			rm -rf /usr/share/doc/openvpn
-			sed -i '/--dport 53 -j REDIRECT --to-port 1194/d' /etc/rc.local
-			sed -i '/iptables -t nat -A POSTROUTING -s 10.8.0.0/d' /etc/rc.local
-			echo ""
-			echo "OpenVPN removed!"
-			exit
-			;;
-			2) exit;;
-		esac
-	done
+#!/bin/bash
+# initialisasi var
+clear
+export DEBIAN_FRONTEND=noninteractive
+OS=`uname -m`;
+MYIP=`ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0' | head -n1`;
+MYIP2="s/xxxxxxxxx/$MYIP/g";
+source="https://raw.githubusercontent.com/AdityaWg/autoscript/master";
+echo "=============================="
+echo "Ketik 'I' Untuk VPS Non-Lokal"
+echo "Ketik 'L' Untuk VPS Lokal" 
+echo "=============================="
+read -p "Location : " -e loc
+apt-get update
+# root
+cd
+# disable ipv6
+echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+sed -i '$ i\echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6' /etc/rc.local
+# wget and curl
+apt-get update;apt-get -y install wget curl;
+# set time GMT +7
+ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+# set locale
+sed -i 's/AcceptEnv/#AcceptEnv/g' /etc/ssh/sshd_config
+service ssh restart
+# set repo
+# set repo
+ver=`cat /etc/debian_version`
+if [ $ver = '6.0' ]
+then
+debver='6'
+elif [ $ver = '6.1' ]
+then
+debver='6'
+elif [ $ver = '6.2' ]
+then
+debver='6'
+elif [ $ver = '6.3' ]
+then
+debver='6'
+elif [ $ver = '6.4' ]
+then
+debver='6'
+elif [ $ver = '6.5' ]
+then
+debver='6'
+elif [ $ver = '6.6' ]
+then
+debver='6'
+elif [ $ver = '6.7' ]
+then
+debver='6'
+elif [ $ver = '6.8' ]
+then
+debver='6'
+elif [ $ver = '6.9' ]
+then
+debver='6'
+elif [ $ver = '7.0' ]
+then
+debver='7'
+elif [ $ver = '7.1' ]
+then
+debver='7'
+elif [ $ver = '7.2' ]
+then
+debver='7'
+elif [ $ver = '7.3' ]
+then
+debver='7'
+elif [ $ver = '7.4' ]
+then
+debver='7'
+elif [ $ver = '7.5' ]
+then
+debver='7'
+elif [ $ver = '7.6' ]
+then
+debver='7'
+elif [ $ver = '7.7' ]
+then
+debver='7'
+elif [ $ver = '7.8' ]
+then
+debver='7'
+elif [ $ver = '7.9' ]
+then
+debver='7'
+elif [ $ver = '8.0' ]
+then
+debver='8'
+elif [ $ver = '8.1' ]
+then
+debver='8'
+elif [ $ver = '8.2' ]
+then
+debver='8'
+elif [ $ver = '8.3' ]
+then
+debver='8'
+elif [ $ver = '8.4' ]
+then
+debver='8'
+elif [ $ver = '8.5' ]
+then
+debver='8'
+elif [ $ver = '8.6' ]
+then
+debver='8'
+elif [ $ver = '8.7' ]
+then
+debver='8'
+elif [ $ver = '8.8' ]
+then
+debver='8'
+elif [ $ver = '8.9' ]
+then
+debver='8'
 else
-	echo 'Selamat Datang di quick OpenVPN installer'
-	echo "Dimodifikasi oleh www.fornesia.com"
-	echo ""
-	# OpenVPN setup and first user creation
-	echo "1st alamat IPv4 yang ingin diinstall OpenVPN"
-	echo "listening to."
-	read -p "IP address: " -e -i $IP IP
-	echo ""
-	echo "Port untuk OpenVPN?"
-	read -p "Port: " -e -i 1194 PORT
-	echo ""
-	echo "Apakah Anda ingin OpenVPN akan tersedia pada port 53 juga?"
-	echo "Hal ini dapat berguna untuk menghubungkan ke restrictive networks"
-	read -p "Listen port 53 [y/n]:" -e -i y ALTPORT
-	echo ""
-	echo "Masukan Nama Anda untuk cert klien"
-	echo "Silakan, gunakan satu kata saja, tidak ada karakter khusus"
-	read -p "Nama Client: " -e -i client CLIENT
-	echo ""
-	echo "Yosh, Semua sudah lengkap. Mulai Install OpenVPN server Anda sekarang"
-	read -n1 -r -p "Tekan sembarang tombol untuk melanjutkan ..."
-	apt-get update
-	apt-get install openvpn iptables openssl -y
-	cp -R /usr/share/doc/openvpn/examples/easy-rsa/ /etc/openvpn
-	# easy-rsa isn't available by default for Debian Jessie and newer
-	if [ ! -d /etc/openvpn/easy-rsa/2.0/ ]; then
-		wget --no-check-certificate -O ~/easy-rsa.tar.gz https://github.com/OpenVPN/easy-rsa/archive/2.2.2.tar.gz
-		tar xzf ~/easy-rsa.tar.gz -C ~/
-		mkdir -p /etc/openvpn/easy-rsa/2.0/
-		cp ~/easy-rsa-2.2.2/easy-rsa/2.0/* /etc/openvpn/easy-rsa/2.0/
-		rm -rf ~/easy-rsa-2.2.2
-	fi
-	cd /etc/openvpn/easy-rsa/2.0/
-	# Let's fix one thing first...
-	cp -u -p openssl-1.0.0.cnf openssl.cnf
-	# Bad NSA - 1024 bits was the default for Debian Wheezy and older
-	#sed -i 's|export KEY_SIZE=1024|export KEY_SIZE=2048|' /etc/openvpn/easy-rsa/2.0/vars
-	# Create the PKI
-	. /etc/openvpn/easy-rsa/2.0/vars
-	. /etc/openvpn/easy-rsa/2.0/clean-all
-	# The following lines are from build-ca. I don't use that script directly
-	# because it's interactive and we don't want that. Yes, this could break
-	# the installation script if build-ca changes in the future.
-	export EASY_RSA="${EASY_RSA:-.}"
-	"$EASY_RSA/pkitool" --initca $*
-	# Same as the last time, we are going to run build-key-server
-	export EASY_RSA="${EASY_RSA:-.}"
-	"$EASY_RSA/pkitool" --server server
-	# Now the client keys. We need to set KEY_CN or the stupid pkitool will cry
-	export KEY_CN="$CLIENT"
-	export EASY_RSA="${EASY_RSA:-.}"
-	"$EASY_RSA/pkitool" $CLIENT
-	# DH params
-	. /etc/openvpn/easy-rsa/2.0/build-dh
-	# Let's configure the server
-cat > /etc/openvpn/server.conf <<-END
-port 1194
-proto tcp
-dev tun
-tun-mtu 1500
-tun-mtu-extra 32
-mssfix 1450
-ca /etc/openvpn/ca.crt
-cert /etc/openvpn/server.crt
-key /etc/openvpn/server.key
-dh /etc/openvpn/dh1024.pem
-plugin /usr/lib/openvpn/openvpn-auth-pam.so /etc/pam.d/login
-client-cert-not-required
-username-as-common-name
-server 10.8.0.0 255.255.255.0
-ifconfig-pool-persist ipp.txt
-push "redirect-gateway def1"
-push "dhcp-option DNS 8.8.8.8"
-push "dhcp-option DNS 8.8.4.4"
-push "route-method exe"
-push "route-delay 2"
-keepalive 5 30
-cipher AES-128-CBC
-comp-lzo
-persist-key
-persist-tun
-status server-vpn.log
-verb 3
-END
-
-	cd /etc/openvpn/easy-rsa/2.0/keys
-	cp ca.crt ca.key dh1024.pem server.crt server.key /etc/openvpn
-	sed -i "s/port 1194/port $PORT/" /etc/openvpn/server.conf
-	# Listen at port 53 too if user wants that
-	if [ $ALTPORT = 'y' ]; then
-		iptables -t nat -A PREROUTING -p udp -d $IP --dport 53 -j REDIRECT --to-port 1194
-		sed -i "/# By default this script does nothing./a\iptables -t nat -A PREROUTING -p udp -d $IP --dport 53 -j REDIRECT --to-port 1194" /etc/rc.local
-	fi
-	# Enable net.ipv4.ip_forward for the system
-	sed -i 's|#net.ipv4.ip_forward=1|net.ipv4.ip_forward=1|' /etc/sysctl.conf
-	# Avoid an unneeded reboot
-	echo 1 > /proc/sys/net/ipv4/ip_forward
-	# Set iptables
-	if [ $(ifconfig | cut -c 1-8 | sort | uniq -u | grep venet0 | grep -v venet0:) = "venet0" ];then
-      		iptables -t nat -A POSTROUTING -o venet0 -j SNAT --to-source $IP
-	else
-      		iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP
-      		iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
-	fi	
-	sed -i "/# By default this script does nothing./a\ip10tables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP" /etc/rc.local
-	iptables-save
-	# And finally, restart OpenVPN
-	/etc/init.d/openvpn restart
-	# Let's generate the client config
-	mkdir ~/ovpn-$CLIENT
-	# Try to detect a NATed connection and ask about it to potential LowEndSpirit
-	# users
-	EXTERNALIP=$(wget -qO- ipv4.icanhazip.com)
-	if [ "$IP" != "$EXTERNALIP" ]; then
-		echo ""
-		echo "Looks like your server is behind a NAT!"
-		echo ""
-		echo "If your server is NATed (LowEndSpirit), I need to know the external IP"
-		echo "If that's not the case, just ignore this and leave the next field blank"
-		read -p "External IP: " -e USEREXTERNALIP
-		if [ $USEREXTERNALIP != "" ]; then
-			IP=$USEREXTERNALIP
-		fi
-	fi
-	# IP/port set on the default client.conf so we can add further users
-	# without asking for them
-
-cat >> ~/ovpn-$CLIENT/$CLIENT.conf <<-END
-client
-proto tcp
-persist-key
-persist-tun
-dev tun
-pull
-comp-lzo
-ns-cert-type server
-verb 3
-mute 2
-mute-replay-warnings
-auth-user-pass
-redirect-gateway def1
-script-security 2
-route-method exe
-route-delay 2
-remote $IP $PORT
-cipher AES-128-CBC
-ca [inline]
-END
-
-	cp /etc/openvpn/easy-rsa/2.0/keys/ca.crt ~/ovpn-$CLIENT
-
-	cd ~/ovpn-$CLIENT
-
-	cp $CLIENT.conf $CLIENT.ovpn
-
-
-	echo "<ca>" >> $CLIENT.ovpn
-	cat ca.crt >> $CLIENT.ovpn
-	echo -e "</ca>\n" >> $CLIENT.ovpn
-
-	tar -czf ../ovpn-$CLIENT.tar.gz $CLIENT.conf ca.crt $CLIENT.ovpn
-	cd ~/
-	rm -rf ovpn-$CLIENT
-	echo ""
-	echo "Selesai!"
-	echo ""
-	echo "Your client config is available at ~/ovpn-$CLIENT.tar.gz"
+debver='Null'
 fi
-	clear
+if [ $debver = '6' ]; then
+	if [[ "$loc" = "I" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian7"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		cat dotdeb.gpg | apt-key add -;rm dotdeb.gpg
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	elif [[ "$loc" = "L" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian7.lokal"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		apt-key add dotdeb.gpg
+		rm dotdeb.gpg
+		apt-get install python-software-properties 
+		apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 0xcbcb082a1bb943db
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	elif [[ "$loc" = "i" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian7"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		cat dotdeb.gpg | apt-key add -;rm dotdeb.gpg
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	elif [[ "$loc" = "l" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian7.lokal"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		apt-key add dotdeb.gpg
+		rm dotdeb.gpg
+		apt-get install python-software-properties 
+		apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 0xcbcb082a1bb943db
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	fi
+elif [ $debver = '7' ]; then
+	if [[ "$loc" = "I" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian7"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		cat dotdeb.gpg | apt-key add -;rm dotdeb.gpg
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	elif [[ "$loc" = "L" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian7.lokal"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		apt-key add dotdeb.gpg
+		rm dotdeb.gpg
+		apt-get install python-software-properties 
+		apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 0xcbcb082a1bb943db
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	elif [[ "$loc" = "i" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian7"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		cat dotdeb.gpg | apt-key add -;rm dotdeb.gpg
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	elif [[ "$loc" = "l" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian7.lokal"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		apt-key add dotdeb.gpg
+		rm dotdeb.gpg
+		apt-get install python-software-properties 
+		apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 0xcbcb082a1bb943db
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	fi
+elif [ $debver = '8' ]; then
+	if [[ "$loc" = "I" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian8"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		cat dotdeb.gpg | apt-key add -;rm dotdeb.gpg
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	elif [[ "$loc" = "L" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian8.lokal"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		apt-key add dotdeb.gpg
+		rm dotdeb.gpg
+		apt-get install python-software-properties 
+		apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 0xcbcb082a1bb943db
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	elif [[ "$loc" = "i" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian8"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		cat dotdeb.gpg | apt-key add -;rm dotdeb.gpg
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	elif [[ "$loc" = "l" ]]; then
+		wget -O /etc/apt/sources.list "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/sources.list.debian8.lokal"
+		wget "https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dotdeb.gpg"
+		apt-key add dotdeb.gpg
+		rm dotdeb.gpg
+		apt-get install python-software-properties 
+		apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 0xcbcb082a1bb943db
+		cd /root
+		wget http://www.webmin.com/jcameron-key.asc
+		apt-key add jcameron-key.asc
+		cd
+		apt-get update
+	fi
+else
+	cd
+fi
 
-echo ""
-echo "OpenVPN sudah terinstall http://$MYIP:81/client.tar atau /root/client.tar"
-echo ""
+gpg --keyserver pgpkeys.mit.edu --recv-key  9D6D8F6BC857C906      
+gpg -a --export 9D6D8F6BC857C906 | sudo apt-key add -
+gpg --keyserver pgpkeys.mit.edu --recv-key  7638D0442B90D010      
+gpg -a --export 7638D0442B90D010 | sudo apt-key add -
+# remove unused
+apt-get -y --purge remove samba*;
+apt-get -y --purge remove apache2*;
+apt-get -y --purge remove sendmail*;
+apt-get -y --purge remove bind9*;
+# update
+apt-get update; apt-get -y upgrade;
+# install webserver
+apt-get -y install nginx php5-fpm php5-cli
+# install essential package
+echo "mrtg mrtg/conf_mods boolean true" | debconf-set-selections
+apt-get -y install bmon iftop htop nmap axel nano iptables traceroute sysv-rc-conf dnsutils bc nethogs openvpn vnstat less screen psmisc apt-file whois ptunnel ngrep mtr git zsh mrtg snmp snmpd snmp-mibs-downloader unzip unrar rsyslog debsums rkhunter
+apt-get -y install build-essential
+# disable exim
+service exim4 stop
+sysv-rc-conf exim4 off
+# update apt-file
+apt-file update
+# setting vnstat
+vnstat -u -i eth0
+echo "MAILTO=root" > /etc/cron.d/vnstat
+echo "*/5 * * * * root /usr/sbin/vnstat.cron" >> /etc/cron.d/vnstat
+service vnstat restart
+chkconfig vnstat on
+# screenfetch
+#cd
+#wget $source/file/screeftech-dev
+#mv screeftech-dev /usr/bin/screenfetch
+#chmod +x /usr/bin/screenfetch
+#echo "clear" >> .profile
+#echo "screenfetch" >> .profile
+# Web Server
+cd
+rm /etc/nginx/sites-enabled/default
+rm /etc/nginx/sites-available/default
+wget -O /etc/nginx/nginx.conf $source/file/nginx.conf
+mkdir -p /home/vps/public_html
+echo "<?php phpinfo(); ?>" > /home/vps/public_html/info.php
+wget -O /home/vps/public_html/index.html $source/file/index.txt
+wget -O /etc/nginx/conf.d/vps.conf $source/file/vps.conf
+sed -i 's/listen = \/var\/run\/php5-fpm.sock/listen = 127.0.0.1:9000/g' /etc/php5/fpm/pool.d/www.conf
+service php5-fpm restart
+service nginx restart
+# badvpn
+wget -O /usr/bin/badvpn-udpgw $source/file/badvpn-udpgw
+if [ "$OS" == "x86_64" ]; then
+  wget -O /usr/bin/badvpn-udpgw $source/file/badvpn-udpgw64
+fi
+sed -i '$ i\screen -AmdS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300' /etc/rc.local
+chmod +x /usr/bin/badvpn-udpgw
+screen -AmdS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300
+# mrtg
+wget -O /etc/snmp/snmpd.conf $source/file/snmpd.conf
+wget -O /root/mrtg-mem.sh $source/file/mrtg-mem.sh
+chmod +x /root/mrtg-mem.sh
+cd /etc/snmp/
+sed -i 's/TRAPDRUN=no/TRAPDRUN=yes/g' /etc/default/snmpd
+service snmpd restart
+snmpwalk -v 1 -c public localhost 1.3.6.1.4.1.2021.10.1.3.1
+mkdir -p /home/vps/public_html/mrtg
+cfgmaker --zero-speed 100000000 --global 'WorkDir: /home/vps/public_html/mrtg' --output /etc/mrtg.cfg public@localhost
+curl $source/file/mrtg.conf >> /etc/mrtg.cfg
+sed -i 's/WorkDir: \/var\/www\/mrtg/# WorkDir: \/var\/www\/mrtg/g' /etc/mrtg.cfg
+sed -i 's/# Options\[_\]: growright, bits/Options\[_\]: growright/g' /etc/mrtg.cfg
+indexmaker --output=/home/vps/public_html/mrtg/index.html /etc/mrtg.cfg
+if [ -x /usr/bin/mrtg ] && [ -r /etc/mrtg.cfg ]; then mkdir -p /var/log/mrtg ; env LANG=C /usr/bin/mrtg /etc/mrtg.cfg 2>&1 | tee -a /var/log/mrtg/mrtg.log ; fi
+if [ -x /usr/bin/mrtg ] && [ -r /etc/mrtg.cfg ]; then mkdir -p /var/log/mrtg ; env LANG=C /usr/bin/mrtg /etc/mrtg.cfg 2>&1 | tee -a /var/log/mrtg/mrtg.log ; fi
+if [ -x /usr/bin/mrtg ] && [ -r /etc/mrtg.cfg ]; then mkdir -p /var/log/mrtg ; env LANG=C /usr/bin/mrtg /etc/mrtg.cfg 2>&1 | tee -a /var/log/mrtg/mrtg.log ; fi
+cd
+# port ssh
+sed -i '/Port 22/a Port  143' /etc/ssh/sshd_config
+#sed -i '/Port 22/a Port  80' /etc/ssh/sshd_config
+sed -i 's/Port 22/Port  22/g' /etc/ssh/sshd_config
+sed -i 's/#Banner/Banner/g' /etc/ssh/sshd_config
+echo "Banner /etc/baner" >> /etc/ssh/sshd_config
+service ssh restart
+# dropbear
+# upgrad
+apt-get -y install dropbear
+apt-get install zlib1g-dev dpkg-dev dh-make -y
+wget https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dropbear-2014.63.tar.bz2
+tar jxvf dropbear-2014.63.tar.bz2
+cd dropbear-2014.63
+dpkg-buildpackage
+cd ..
+OS=`uname -m`;
+if [ $OS = 'i686' ]; then
+	dpkg -i dropbear_2014.63-0.1_i386.deb
+elif [ $OS = 'x86_64' ]; then
+	dpkg -i dropbear_2014.63-0.1_amd64.deb
+fi
+sed -i 's/NO_START=1/NO_START=0/g' /etc/default/dropbear
+sed -i 's/DROPBEAR_PORT=22/DROPBEAR_PORT=443/g' /etc/default/dropbear
+sed -i 's/DROPBEAR_EXTRA_ARGS=/DROPBEAR_EXTRA_ARGS="-p 80 -p 1922 -p 22507"/g' /etc/default/dropbear
+sed -i 's/DROPBEAR_BANNER=""/DROPBEAR_BANNER="\/etc\/baner"/g' /etc/default/dropbear
+echo "/bin/false" >> /etc/shells
+echo "/usr/sbin/nologin" >> /etc/shells
+service ssh restart
+service dropbear restart
+cd
+
+# VNSTAT
+apt-get install vnstat -y
+cd /home/vps/public_html/
+wget https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/vnstat_php_frontend-1.5.1.tar.gz
+tar xf vnstat_php_frontend-1.5.1.tar.gz
+rm vnstat_php_frontend-1.5.1.tar.gz
+mv vnstat_php_frontend-1.5.1 vnstat
+cd vnstat
+if [[ `ifconfig -a | grep "venet0"` ]]
+then
+cekvirt='OpenVZ'
+elif [[ `ifconfig -a | grep "venet0:0"` ]]
+then
+cekvirt='OpenVZ'
+elif [[ `ifconfig -a | grep "venet0:0-00"` ]]
+then
+cekvirt='OpenVZ'
+elif [[ `ifconfig -a | grep "venet0-00"` ]]
+then
+cekvirt='OpenVZ'
+elif [[ `ifconfig -a | grep "eth0"` ]]
+then
+cekvirt='KVM'
+elif [[ `ifconfig -a | grep "eth0:0"` ]]
+then
+cekvirt='KVM'
+elif [[ `ifconfig -a | grep "eth0:0-00"` ]]
+then
+cekvirt='KVM'
+elif [[ `ifconfig -a | grep "eth0-00"` ]]
+then
+cekvirt='KVM'
+fi
+if [ $cekvirt = 'KVM' ]; then
+	sed -i 's/eth0/eth0/g' config.php
+	sed -i "s/\$iface_list = array('eth0', 'sixxs');/\$iface_list = array('eth0');/g" config.php
+	sed -i "s/\$language = 'nl';/\$language = 'en';/g" config.php
+	sed -i 's/Internal/Internet/g' config.php
+	sed -i '/SixXS IPv6/d' config.php
+	cd
+elif [ $cekvirt = 'OpenVZ' ]; then
+	sed -i 's/eth0/venet0/g' config.php
+	sed -i "s/\$iface_list = array('venet0', 'sixxs');/\$iface_list = array('venet0');/g" config.php
+	sed -i "s/\$language = 'nl';/\$language = 'en';/g" config.php
+	sed -i 's/Internal/Internet/g' config.php
+	sed -i '/SixXS IPv6/d' config.php
+	cd
+else
+	cd
+fi
+
+# Ddos deflate
+wget -O- https://raw.githubusercontent.com/stylersnico/nmd/master/debian/install.sh | sh
+wget -O- https://raw.githubusercontent.com/stylersnico/nmd/master/debian/update.sh | sh
+# fail2ban
+apt-get -y install fail2ban;service fail2ban restart
+# BAANER
+wget -O /etc/baner $source/file/baner.txt
+# squid3
+apt-get -y install squid3
+wget -O /etc/squid3/squid.conf $source/file/squid.conf
+sed -i $MYIP2 /etc/squid3/squid.conf;
+service squid3 restart
+# webmin
+cd
+wget "http://prdownloads.sourceforge.net/webadmin/webmin_1.600_all.deb"
+dpkg --install webmin_1.600_all.deb;
+apt-get -y -f install;
+rm /root/webmin_1.600_all.deb
+sed -i 's/ssl=1/ssl=0/g' /etc/webmin/miniserv.conf
+apt-get -y -f install libxml-parser-perl
+service webmin restart
+service vnstat restart
+# autoreboot
+#echo "0 */24 * * * root /sbin/reboot" > /etc/cron.d/reboot
+echo "0 */12 * * * root /bin/bash /usr/bin/expdel" > /etc/cron.d/expdel
+# ovpn
+wget http://script.berkahssh.club/ovpn.sh && bash ovpn.sh
+# skrup
+cd /usr/bin
+wget -O tambah $source/file/anyar.sh
+wget -O renew $source/file/nambah.sh
+wget -O cekvps $source/file/cekvps.sh
+wget -O pass $source/file/passwd.sh
+wget -O hapus $source/file/guwak.sh
+wget -O cekakun $source/file/kabeh.sh
+wget -O bench "https://raw.githubusercontent.com/khairilg/script-jualan-ssh-vpn/master/bench-network.sh"
+wget -O mem "https://raw.githubusercontent.com/pixelb/ps_mem/master/ps_mem.py"
+wget -O userlog $source/file/ndelok.sh
+wget -O expdel $source/file/gwakkbh.sh
+wget -O tendang $source/file/sadok.sh
+wget -O trial $source/file/trial.sh
+wget -O generate $source/file/gen.sh
+wget -O speedtest $source/file/speedtest_cli.py
+echo "python /usr/bin/speedtest.py --share" | tee speedtest
+echo "speedtest --share" | tee speedtest
+wget -O speedtest $source/file/speedtest_cli.py
+chmod +x tambah
+chmod +x renew
+chmod +x cekvps
+chmod +x pass
+chmod +x hapus
+chmod +x cekakun
+chmod +x bench
+chmod +x mem
+chmod +x userlog
+chmod +x expdel
+chmod +x tendang
+chmod +x trial
+chmod +x generate
+chmod +x speedtest
+chmod +x speedtest_cli.py
+chmod +x mem
+chmod +x bench
+ # finishing
+chown -R www-data:www-data /home/vps/public_html
+service cron restart
+service nginx start
+service php-fpm start
+service vnstat restart
+service snmpd restart
+service ssh restart
+service openvpn restart
+service dropbear restart
+service fail2ban restart
+service squid3 restart
+service webmin restart
+rm -rf ~/.bash_history && history -c
+echo "unset HISTFILE" >> /etc/profile
+rm /root/debian7.sh
+rm -f /root/debian7.sh
+rm /root/ovpn.sh
+rm -f /root/ovpn.sh
+rm /root/update.sh
+rm -f /root/update.sh
+history -c
