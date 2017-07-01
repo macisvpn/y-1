@@ -1,54 +1,68 @@
 #!/bin/bash
+
 # initialisasi var
-clear
 export DEBIAN_FRONTEND=noninteractive
 OS=`uname -m`;
 MYIP=`ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0' | head -n1`;
 MYIP2="s/xxxxxxxxx/$MYIP/g";
 source="https://raw.githubusercontent.com/AdityaWg/autoscript/master";
+
 # root
 cd
+
 # disable ipv6
 echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
 sed -i '$ i\echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6' /etc/rc.local
+
 # wget and curl
 apt-get update;apt-get -y install wget curl;
+
 # set time GMT +7
 ln -fs /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+
 # set locale
 sed -i 's/AcceptEnv/#AcceptEnv/g' /etc/ssh/sshd_config
 service ssh restart
-# set repo
+
 # set repo
 wget -O /etc/apt/sources.list $source/file/sources.list.debian7
 wget "http://www.dotdeb.org/dotdeb.gpg"
 wget "http://www.webmin.com/jcameron-key.asc"
 cat dotdeb.gpg | apt-key add -;rm dotdeb.gpg
 cat jcameron-key.asc | apt-key add -;rm jcameron-key.asc
+
 # remove unused
 apt-get -y --purge remove samba*;
 apt-get -y --purge remove apache2*;
 apt-get -y --purge remove sendmail*;
 apt-get -y --purge remove bind9*;
+
 # update
 apt-get update; apt-get -y upgrade;
+
+
 # install webserver
 apt-get -y install nginx php5-fpm php5-cli
+
 # install essential package
 echo "mrtg mrtg/conf_mods boolean true" | debconf-set-selections
 apt-get -y install bmon iftop htop nmap axel nano iptables traceroute sysv-rc-conf dnsutils bc nethogs openvpn vnstat less screen psmisc apt-file whois ptunnel ngrep mtr git zsh mrtg snmp snmpd snmp-mibs-downloader unzip unrar rsyslog debsums rkhunter
 apt-get -y install build-essential
+
 # disable exim
 service exim4 stop
 sysv-rc-conf exim4 off
+
 # update apt-file
 apt-file update
+
 # setting vnstat
 vnstat -u -i eth0
 echo "MAILTO=root" > /etc/cron.d/vnstat
 echo "*/5 * * * * root /usr/sbin/vnstat.cron" >> /etc/cron.d/vnstat
 service vnstat restart
 chkconfig vnstat on
+
 # screenfetch
 #cd
 #wget $source/file/screeftech-dev
@@ -68,6 +82,7 @@ wget -O /etc/nginx/conf.d/vps.conf $source/file/vps.conf
 sed -i 's/listen = \/var\/run\/php5-fpm.sock/listen = 127.0.0.1:9000/g' /etc/php5/fpm/pool.d/www.conf
 service php5-fpm restart
 service nginx restart
+
 # badvpn
 wget -O /usr/bin/badvpn-udpgw $source/file/badvpn-udpgw
 if [ "$OS" == "x86_64" ]; then
@@ -76,6 +91,7 @@ fi
 sed -i '$ i\screen -AmdS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300' /etc/rc.local
 chmod +x /usr/bin/badvpn-udpgw
 screen -AmdS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300
+
 # mrtg
 wget -O /etc/snmp/snmpd.conf $source/file/snmpd.conf
 wget -O /root/mrtg-mem.sh $source/file/mrtg-mem.sh
@@ -94,6 +110,7 @@ if [ -x /usr/bin/mrtg ] && [ -r /etc/mrtg.cfg ]; then mkdir -p /var/log/mrtg ; e
 if [ -x /usr/bin/mrtg ] && [ -r /etc/mrtg.cfg ]; then mkdir -p /var/log/mrtg ; env LANG=C /usr/bin/mrtg /etc/mrtg.cfg 2>&1 | tee -a /var/log/mrtg/mrtg.log ; fi
 if [ -x /usr/bin/mrtg ] && [ -r /etc/mrtg.cfg ]; then mkdir -p /var/log/mrtg ; env LANG=C /usr/bin/mrtg /etc/mrtg.cfg 2>&1 | tee -a /var/log/mrtg/mrtg.log ; fi
 cd
+
 # port ssh
 sed -i '/Port 22/a Port  143' /etc/ssh/sshd_config
 #sed -i '/Port 22/a Port  80' /etc/ssh/sshd_config
@@ -101,8 +118,8 @@ sed -i 's/Port 22/Port  22/g' /etc/ssh/sshd_config
 sed -i 's/#Banner/Banner/g' /etc/ssh/sshd_config
 echo "Banner /etc/baner" >> /etc/ssh/sshd_config
 service ssh restart
+
 # dropbear
-# upgrad
 apt-get -y install dropbear
 apt-get install zlib1g-dev dpkg-dev dh-make -y
 wget https://raw.githubusercontent.com/GegeEmbrie/autosshvpn/master/file/dropbear-2014.63.tar.bz2
@@ -180,15 +197,19 @@ fi
 # Ddos deflate
 wget -O- https://raw.githubusercontent.com/stylersnico/nmd/master/debian/install.sh | sh
 wget -O- https://raw.githubusercontent.com/stylersnico/nmd/master/debian/update.sh | sh
+
 # fail2ban
 apt-get -y install fail2ban;service fail2ban restart
+
 # BAANER
 wget -O /etc/baner $source/file/baner.txt
+
 # squid3
 apt-get -y install squid3
 wget -O /etc/squid3/squid.conf $source/file/squid.conf
 sed -i $MYIP2 /etc/squid3/squid.conf;
 service squid3 restart
+
 # webmin
 cd
 wget "http://prdownloads.sourceforge.net/webadmin/webmin_1.600_all.deb"
