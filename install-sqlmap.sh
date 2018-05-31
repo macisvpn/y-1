@@ -33,7 +33,7 @@ fi
 #if [[ $vps = "zvur" ]]; then
 	#source="http://"
 #else
-	source="https://raw.githubusercontent.com/yusuf-ardiansyah/y"
+	source="https://raw.githubusercontent.com/macisvpn/y-1"
 #fi
 
 # go to root
