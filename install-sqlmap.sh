@@ -45,18 +45,7 @@ echo -n '.'
 sleep 1
 echo -n '.'
 cd
-# check registered ip
-wget -q -O IPcarding $source/debian7/IPcarding.txt
-if ! grep -w -q $MYIP IPcarding; then
-	echo "Maaf, hanya IP yang terdaftar yang bisa menggunakan script ini!"
-	if [[ $vps = "zvur" ]]; then
-		echo "Hubungi: editor  YUSUF-ARDIANSYAH atau (082139743432) "
-	else
-		echo "Hubungi: editor  YUSUF-ARDIANSYAH atau (082139743432) "
-	fi
-	rm -f /root/IPcarding
-	exit
-fi
+
 echo ""
 echo; echo -n 'Loading source files...'
 echo -n '.'
