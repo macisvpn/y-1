@@ -29,25 +29,14 @@ vps="aneka";
 #if [[ $vps = "zvur" ]]; then
 	#source="http://"
 #else
-	source="https://raw.githubusercontent.com/yusuf-ardiansyah/y"
+	source="https://raw.githubusercontent.com/macisvpn/y-1"
 #fi
 
 # go to root
 cd
 
-# check registered ip
-wget -q -O IP $source/debian7/IP.txt
-if ! grep -w -q $MYIP IP; then
-	echo "Maaf, hanya IP yang terdaftar yang bisa menggunakan script ini!"
-	if [[ $vps = "zvur" ]]; then
-		echo "Hubungi: editor YUSUF-ARDIANSYAH atau (082139743432)"
-	else
-		echo "Hubungi: editor YUSUF-ARDIANSYAH atau (082139743432)"
-	fi
-	rm -f /root/IP
-	rm -f /root/IPcarding
-	exit
-fi
+
+
 rm /root/IP
 #echo "Maaf.. Saat ini belum tersedia update script bos......!!!" | boxes -d boy
 #echo "Update webmin tersedia bos, tp versi webmin 1.820_all.deb..gk apa2 ya boss.." | lolcat
